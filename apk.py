@@ -22,12 +22,12 @@ import androconf
 from dvm_permissions import DVM_PERMISSIONS
 from util import read, get_md5
 
-import StringIO
+import io
 from struct import pack, unpack
 from xml.sax.saxutils import escape
 from zlib import crc32
 import re
-import M2Crypto
+#import M2Crypto
 
 from xml.dom import minidom
 
@@ -190,7 +190,7 @@ class APK(object):
         if zipmodule == 0:
             self.zip = ChilkatZip(self.__raw)
         else:
-            self.zip = zipfile.ZipFile(StringIO.StringIO(self.__raw), mode=mode)
+            self.zip = zipfile.ZipFile(io.BytesIO(self.__raw), mode=mode)
 
         for i in self.zip.namelist():
             if i == "AndroidManifest.xml":
@@ -671,38 +671,38 @@ class APK(object):
     def show(self):
         self.get_files_types()
 
-        print "FILES: "
+        print( "FILES: ")
         for i in self.get_files():
             try:
-                print "\t", i, self.files[i], "%x" % self.files_crc32[i]
+                print( "\t", i, self.files[i], "%x" % self.files_crc32[i])
             except KeyError:
-                print "\t", i, "%x" % self.files_crc32[i]
+                print( "\t", i, "%x" % self.files_crc32[i])
 
-        print "PERMISSIONS: "
+        print( "PERMISSIONS: ")
         details_permissions = self.get_details_permissions()
         for i in details_permissions:
-            print "\t", i, details_permissions[i]
-        print "MAIN ACTIVITY: ", self.get_main_activity()
+            print( "\t", i, details_permissions[i])
+        print( "MAIN ACTIVITY: ", self.get_main_activity())
 
-        print "ACTIVITIES: "
+        print( "ACTIVITIES: ")
         activities = self.get_activities()
         for i in activities:
             filters = self.get_intent_filters("activity", i)
-            print "\t", i, filters or ""
+            print( "\t", i, filters or "")
 
-        print "SERVICES: "
+        print( "SERVICES: ")
         services = self.get_services()
         for i in services:
             filters = self.get_intent_filters("service", i)
-            print "\t", i, filters or ""
+            print( "\t", i, filters or "")
 
-        print "RECEIVERS: "
+        print( "RECEIVERS: ")
         receivers = self.get_receivers()
         for i in receivers:
             filters = self.get_intent_filters("receiver", i)
-            print "\t", i, filters or ""
+            print( "\t", i, filters or "")
 
-        print "PROVIDERS: ", self.get_providers()
+        print( "PROVIDERS: ", self.get_providers())
 
     def parse_icon(self, icon_path=None):
         """
@@ -720,22 +720,22 @@ class APK(object):
         parse_icon_rt = os.popen(aapt_line).read()
         icon_paths = [icon.replace("'", '') for icon in parse_icon_rt.split('\n') if icon]
 
-        zfile = zipfile.ZipFile(StringIO.StringIO(self.__raw), mode='r')
+        zfile = zipfile.ZipFile(io.StringIO(self.__raw), mode='r')
         for icon in icon_paths:
             icon_name = icon.replace('/', '_')
             data = zfile.read(icon)
             with open(os.path.join(pkg_name_path, icon_name), 'w+b') as icon_file:
                 icon_file.write(data)
-        print "APK ICON in: %s" % pkg_name_path
+        print( "APK ICON in: %s" % pkg_name_path)
 
 
 def show_Certificate(cert):
-    print "Issuer: C=%s, CN=%s, DN=%s, E=%s, L=%s, O=%s, OU=%s, S=%s" % (
+    print( "Issuer: C=%s, CN=%s, DN=%s, E=%s, L=%s, O=%s, OU=%s, S=%s" % (
     cert.issuerC(), cert.issuerCN(), cert.issuerDN(), cert.issuerE(), cert.issuerL(), cert.issuerO(), cert.issuerOU(),
-    cert.issuerS())
-    print "Subject: C=%s, CN=%s, DN=%s, E=%s, L=%s, O=%s, OU=%s, S=%s" % (
+    cert.issuerS()))
+    print( "Subject: C=%s, CN=%s, DN=%s, E=%s, L=%s, O=%s, OU=%s, S=%s" % (
     cert.subjectC(), cert.subjectCN(), cert.subjectDN(), cert.subjectE(), cert.subjectL(), cert.subjectO(),
-    cert.subjectOU(), cert.subjectS())
+    cert.subjectOU(), cert.subjectS()))
 
 
 ######################################################## AXML FORMAT ########################################################
@@ -818,10 +818,10 @@ class StringBlock(object):
         return self._cache[idx]
 
     def getStyle(self, idx):
-        print idx
-        print idx in self.m_styleOffsets, self.m_styleOffsets[idx]
+        print( idx)
+        print( idx in self.m_styleOffsets, self.m_styleOffsets[idx])
 
-        print self.m_styles[0]
+        print( self.m_styles[0])
 
     def decode(self, array, offset, length):
         length = length * 2
@@ -831,7 +831,7 @@ class StringBlock(object):
 
         for i in range(0, length):
             t_data = pack("=b", self.m_strings[offset + i])
-            data += unicode(t_data, errors='ignore')
+            data += str(t_data, "utf-8")
             if data[-2:] == "\x00\x00":
                 break
 
@@ -870,10 +870,10 @@ class StringBlock(object):
         return (array[offset + 1] & 0xff) << 8 | array[offset] & 0xff
 
     def show(self):
-        print "StringBlock", hex(self.start), hex(self.header), hex(self.header_size), hex(self.chunkSize), hex(
-            self.stringsOffset), self.m_stringOffsets
+        print( "StringBlock", hex(self.start), hex(self.header), hex(self.header_size), hex(self.chunkSize), hex(
+            self.stringsOffset), self.m_stringOffsets)
         for i in range(0, len(self.m_stringOffsets)):
-            print i, repr(self.getString(i))
+            print( i, repr(self.getString(i)))
 
 
 ATTRIBUTE_IX_NAMESPACE_URI = 0
@@ -970,7 +970,7 @@ class AXMLParser(object):
                 if chunkSize < 8 or chunkSize % 4 != 0:
                     androconf.warning("Invalid chunk size")
 
-                for i in range(0, chunkSize / 4 - 2):
+                for i in range(0, int(chunkSize / 4 - 2)):
                     self.m_resourceIDs.append(unpack('<L', self.buff.read(4))[0])
 
                 continue
@@ -1469,7 +1469,7 @@ class ARSCParser(object):
         try:
             return [ate.get_value(), "%s%s" % (
             complexToFloat(ate.key.get_data()), DIMENSION_UNITS[ate.key.get_data() & COMPLEX_UNIT_MASK])]
-        except Exception, why:
+        except Exception as why:
             androconf.warning(why.__str__())
             return [ate.get_value(), ate.key.get_data()]
 
